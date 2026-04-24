@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>冰岛小探险 - 益智配对游戏</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      font-family: "微软雅黑", sans-serif;
+      background: linear-gradient(180deg, #cdeffd 0%, #eaf7ff 55%, #f5f8ff 100%);
+      color: #1f3d5a;
+    }
+    header {
+      text-align: center;
+      padding: 24px 16px 0;
+    }
+    h1 {
+      margin: 0;
+      font-size: 2.4rem;
+    }
+    .subtitle {
+      margin-top: 8px;
+      font-size: 1rem;
+      color: #3b5a7a;
+    }
+    .game-panel {
+      width: min(100%, 720px);
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .info-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .info-card {
+      background: rgba(255, 255, 255, 0.88);
+      border-radius: 16px;
+      padding: 12px 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      min-width: 120px;
+      text-align: center;
+    }
+    .info-card strong {
+      display: block;
+      font-size: 1.2rem;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(70px, 1fr));
+      gap: 12px;
+    }
+    .card {
+      position: relative;
+      width: 100%;
+      padding-top: 100%;
+      border-radius: 18px;
+      cursor: pointer;
+      perspective: 900px;
+    }
+    .card-inner {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 18px;
+      transform-style: preserve-3d;
+      transition: transform 0.5s ease;
+      box-shadow: 0 14px 24px rgba(16, 72, 108, 0.12);
+    }
+    .card.flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+    .card-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(1.8rem, 3vw, 2.8rem);
+      transition: background 0.3s ease;
+      backface-visibility: hidden;
+    }
+    .front {
+      background: linear-gradient(135deg, #5ab9ff, #4a83c1);
+      color: #ffffff;
+    }
+    .back {
+      background: linear-gradient(135deg, #fffafa, #d8effd);
+      color: #16425a;
+      transform: rotateY(180deg);
+      font-size: 1rem;
+      padding: 12px;
+      flex-direction: column;
+      text-align: center;
+      line-height: 1.3;
+    }
+    .back strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 1.1rem;
+    }
+    .button-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 12px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      background: #1e6cb8;
+      color: white;
+      box-shadow: 0 10px 20px rgba(30, 108, 184, 0.24);
+      transition: transform 0.15s ease, background 0.2s ease;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      background: #2776d0;
+    }
+    .footer {
+      text-align: center;
+      padding: 18px 16px 26px;
+      color: #4b6d8d;
+    }
+    .message {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 1.05rem;
+      color: #0c3c58;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>冰岛小探险</h1>
+    <p class="subtitle">和小朋友一起玩配对游戏，认识冰岛动物和风景！</p>
+  </header>
+  <section class="game-panel">
+    <div class="info-row">
+      <div class="info-card">
+        <strong id="moves">0</strong>
+        步数
+      </div>
+      <div class="info-card">
+        <strong id="matches">0</strong>
+        匹配对数
+      </div>
+      <div class="info-card">
+        <strong id="best">0</strong>
+        最佳纪录
+      </div>
+    </div>
+    <div class="board" id="board"></div>
+    <p class="message" id="status">翻开两张卡片，找出相同的冰岛图案。</p>
+    <div class="button-row">
+      <button id="restart">重新开始</button>
+      <button id="hint">提示一对</button>
+    </div>
+  </section>
+  <footer class="footer">
+    小朋友可以边玩边学：冰山、极光、北极狐、冰川、热气球、鲸鱼。
+  </footer>
+  <script>
+    const items = [
+      { emoji: "❄️", label: "冰山" },
+      { emoji: "🦊", label: "北极狐" },
+      { emoji: "🌌", label: "极光" },
+      { emoji: "🧊", label: "冰川" },
+      { emoji: "🎈", label: "热气球" },
+      { emoji: "🐋", label: "鲸鱼" }
+    ];
+    const boardEl = document.getElementById("board");
+    const movesEl = document.getElementById("moves");
+    const matchesEl = document.getElementById("matches");
+    const bestEl = document.getElementById("best");
+    const statusEl = document.getElementById("status");
+    const restartBtn = document.getElementById("restart");
+    const hintBtn = document.getElementById("hint");
+
+    let cards = [];
+    let openCards = [];
+    let moveCount = 0;
+    let matchCount = 0;
+    let bestRecord = Infinity;
+    let blockClick = false;
+
+    function createCards() {
+      cards = items.concat(items).map((item, index) => ({
+        ...item,
+        id: index,
+        matched: false
+      }));
+      shuffle(cards);
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function renderBoard() {
+      boardEl.innerHTML = "";
+      cards.forEach((card, index) => {
+        const cardEl = document.createElement("div");
+        cardEl.className = "card";
+        cardEl.dataset.index = index;
+        cardEl.innerHTML = `
+          <div class="card-inner">
+            <div class="card-face front">?</div>
+            <div class="card-face back">
+              <strong>${card.emoji}</strong>
+              ${card.label}
+            </div>
+          </div>
+        `;
+        cardEl.addEventListener("click", () => handleCardClick(cardEl, card));
+        boardEl.appendChild(cardEl);
+      });
+      updateInfo();
+    }
+
+    function updateInfo() {
+      movesEl.textContent = moveCount;
+      matchesEl.textContent = matchCount;
+      bestEl.textContent = bestRecord === Infinity ? "—" : bestRecord;
+    }
+
+    function handleCardClick(cardEl, card) {
+      if (blockClick) return;
+      if (card.matched) return;
+      if (openCards.some(open => open.card === card)) return;
+
+      cardEl.classList.add("flipped");
+      openCards.push({ card, el: cardEl });
+
+      if (openCards.length === 2) {
+        moveCount += 1;
+        updateInfo();
+        const [first, second] = openCards;
+        if (first.card.label === second.card.label) {
+          first.card.matched = true;
+          second.card.matched = true;
+          matchCount += 1;
+          statusEl.textContent = `太棒了！你找到了 ${first.card.label} 的一对。`;
+          openCards = [];
+          if (matchCount === items.length) {
+            finishGame();
+          }
+        } else {
+          statusEl.textContent = "再试一次，记住它们的位置吧。";
+          blockClick = true;
+          setTimeout(() => {
+            first.el.classList.remove("flipped");
+            second.el.classList.remove("flipped");
+            openCards = [];
+            blockClick = false;
+          }, 900);
+        }
+      }
+    }
+
+    function finishGame() {
+      statusEl.textContent = `恭喜你完成啦！共用 ${moveCount} 步。`;
+      if (moveCount < bestRecord) {
+        bestRecord = moveCount;
+        statusEl.textContent += " 这是你的新纪录！";
+      }
+      updateInfo();
+    }
+
+    function restartGame() {
+      openCards = [];
+      moveCount = 0;
+      matchCount = 0;
+      blockClick = false;
+      cards.forEach(card => (card.matched = false));
+      createCards();
+      renderBoard();
+      statusEl.textContent = "翻开两张卡片，找出相同的冰岛图案。";
+    }
+
+    function showHint() {
+      if (blockClick) return;
+      const unmatched = cards.filter(card => !card.matched);
+      if (unmatched.length < 2) return;
+      const first = unmatched[Math.floor(Math.random() * unmatched.length)];
+      const second = unmatched.find(card => card.label === first.label && card.id !== first.id);
+      if (!second) return;
+      const firstEl = boardEl.querySelector(`[data-index='${cards.indexOf(first)}']`);
+      const secondEl = boardEl.querySelector(`[data-index='${cards.indexOf(second)}']`);
+      if (firstEl && secondEl) {
+        firstEl.classList.add("flipped");
+        secondEl.classList.add("flipped");
+        setTimeout(() => {
+          if (!first.matched) firstEl.classList.remove("flipped");
+          if (!second.matched) secondEl.classList.remove("flipped");
+        }, 1200);
+      }
+    }
+
+    restartBtn.addEventListener("click", restartGame);
+    hintBtn.addEventListener("click", showHint);
+
+    createCards();
+    renderBoard();
+  </script>
+</body>
+</html>
